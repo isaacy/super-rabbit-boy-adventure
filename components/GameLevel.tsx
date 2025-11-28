@@ -1,8 +1,9 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Entity, EntityType, PlayerState, LevelData } from '../types';
 import { 
-  GRAVITY, JUMP_FORCE, SPEED, FRICTION, WATER_GRAVITY, 
-  WATER_FRICTION, SWIM_FORCE, CANVAS_WIDTH, CANVAS_HEIGHT 
+  GRAVITY, JUMP_FORCE, SPEED, GROUND_FRICTION, AIR_FRICTION, 
+  WATER_GRAVITY, WATER_FRICTION, SWIM_FORCE, CANVAS_WIDTH, CANVAS_HEIGHT,
+  CARROT_JUMP_BONUS, RUN_JUMP_BONUS
 } from '../constants';
 
 interface GameLevelProps {
@@ -17,8 +18,8 @@ const GameLevel: React.FC<GameLevelProps> = ({ levelData, onGameOver, onWin, onE
   const playerRef = useRef<PlayerState>({
     x: levelData.startPos.x,
     y: levelData.startPos.y,
-    w: 40, // Wider for head
-    h: 64, // Taller for head + body + legs
+    w: 40, 
+    h: 64, 
     vx: 0,
     vy: 0,
     isGrounded: false,
@@ -32,6 +33,7 @@ const GameLevel: React.FC<GameLevelProps> = ({ levelData, onGameOver, onWin, onE
   const enemiesRef = useRef<Entity[]>(JSON.parse(JSON.stringify(levelData.enemies)));
   const itemsRef = useRef<Entity[]>(JSON.parse(JSON.stringify(levelData.items)));
   const requestRef = useRef<number>();
+  const frameRef = useRef<number>(0);
   
   // React State for rendering
   const [renderPlayer, setRenderPlayer] = useState<PlayerState>(playerRef.current);
@@ -54,6 +56,8 @@ const GameLevel: React.FC<GameLevelProps> = ({ levelData, onGameOver, onWin, onE
     const items = itemsRef.current;
     const keys = keysRef.current;
     
+    frameRef.current++;
+
     // --- Player Movement ---
     if (keys['ArrowLeft']) {
       player.vx -= 1;
@@ -80,12 +84,23 @@ const GameLevel: React.FC<GameLevelProps> = ({ levelData, onGameOver, onWin, onE
       if (player.isSwimming) {
          player.vy = SWIM_FORCE;
       } else if (player.isGrounded) {
-         player.vy = JUMP_FORCE;
+         // Calculate dynamic jump force
+         // Base Jump
+         let totalJumpForce = JUMP_FORCE;
+         
+         // Bonus from Carrots (Eat carrots = Jump Higher)
+         totalJumpForce -= (player.carrotsCollected * CARROT_JUMP_BONUS);
+
+         // Bonus from Running (Momentum jump)
+         if (Math.abs(player.vx) > SPEED * 0.8) {
+             totalJumpForce -= RUN_JUMP_BONUS;
+         }
+
+         player.vy = totalJumpForce;
          player.isGrounded = false;
       }
     } else {
        // Variable Jump Height: Cut velocity if key released while moving up
-       // This dampens the upward velocity if the player releases the jump button early
        if (player.vy < -1 && !player.isSwimming) {
            player.vy *= 0.85; 
        }
@@ -98,7 +113,9 @@ const GameLevel: React.FC<GameLevelProps> = ({ levelData, onGameOver, onWin, onE
        // Cap Swim Speed
        if (player.vy > 3) player.vy = 3; 
     } else {
-       player.vx *= FRICTION;
+       // Use Air Friction if not grounded to preserve momentum longer (jump further)
+       const friction = player.isGrounded ? GROUND_FRICTION : AIR_FRICTION;
+       player.vx *= friction;
        player.vy += GRAVITY;
     }
 
@@ -164,16 +181,12 @@ const GameLevel: React.FC<GameLevelProps> = ({ levelData, onGameOver, onWin, onE
 
       // Collision with Player
       if (checkCollision(player, enemy)) {
-         // Mario style stomp: Player must be falling.
-         // We make the hitbox slightly forgiving: if player's bottom is within the top half of the enemy
-         // and player is moving down, it counts as a stomp.
          const isStomping = player.vy > 0 && (player.y + player.h) < (enemy.y + enemy.h * 0.8);
          
          if (isStomping) {
             enemy.isDead = true;
             player.vy = JUMP_FORCE / 1.5; // Bounce off
          } else {
-            // Hit by enemy
             onGameOver();
             return;
          }
@@ -194,7 +207,6 @@ const GameLevel: React.FC<GameLevelProps> = ({ levelData, onGameOver, onWin, onE
     // --- Door Interaction ---
     if (checkCollision(player, levelData.door)) {
        if (keys[' '] || keys['Space']) {
-          // Win condition
           onWin();
           return;
        }
@@ -223,6 +235,12 @@ const GameLevel: React.FC<GameLevelProps> = ({ levelData, onGameOver, onWin, onE
     };
   }, [update]);
 
+  // Animation helpers
+  const isMoving = Math.abs(renderPlayer.vx) > 0.1;
+  const legRot = isMoving && renderPlayer.isGrounded 
+      ? Math.sin(frameRef.current * 0.2) * 30 
+      : 0;
+
   return (
     <div className="relative bg-gray-900 flex items-center justify-center h-screen overflow-hidden">
         
@@ -233,7 +251,10 @@ const GameLevel: React.FC<GameLevelProps> = ({ levelData, onGameOver, onWin, onE
                 <div className="w-4 h-4 bg-orange-500 rounded-full"></div>
                 <span className="font-bold">{renderPlayer.carrotsCollected} / {levelData.items.length}</span>
             </div>
-            <div className="text-xs text-gray-500 mt-1">
+            <div className="text-[10px] text-gray-600 mt-1">
+               Jump Boost: +{(renderPlayer.carrotsCollected * CARROT_JUMP_BONUS).toFixed(1)}
+            </div>
+            <div className="text-xs text-gray-500">
                 SPACE to Eat/Exit
             </div>
             <button onClick={onExit} className="mt-2 text-xs bg-red-500 text-white px-2 py-1 rounded font-bold hover:bg-red-400">
@@ -315,7 +336,6 @@ const GameLevel: React.FC<GameLevelProps> = ({ levelData, onGameOver, onWin, onE
                             <div className="absolute top-1 left-2 w-2 h-2 bg-white"></div>
                             <div className="absolute top-1 right-2 w-2 h-2 bg-white"></div>
                             <div className="absolute bottom-2 left-2 right-2 h-1 bg-black"></div>
-                            {/* Antenna */}
                             <div className="absolute -top-3 left-1/2 w-1 h-3 bg-black"></div>
                          </>
                     )}
@@ -338,11 +358,9 @@ const GameLevel: React.FC<GameLevelProps> = ({ levelData, onGameOver, onWin, onE
             >
                 {/* Head Group (Top ~32px) */}
                 <div className="absolute top-0 left-0 w-full h-[32px] border-2 border-black bg-white z-10">
-                    {/* Ears */}
                     <div className="absolute -top-4 left-1 w-3 h-5 bg-white border-2 border-black border-b-0"></div>
                     <div className="absolute -top-4 right-1 w-3 h-5 bg-white border-2 border-black border-b-0"></div>
                     
-                    {/* Face */}
                     <div className="absolute top-3 left-2 w-2 h-3 bg-black rounded-full"></div>
                     <div className="absolute top-3 right-2 w-2 h-3 bg-black rounded-full"></div>
                     <div className="absolute bottom-2 left-3 right-3 h-1 bg-pink-300 rounded-full mx-auto w-3"></div>
@@ -350,15 +368,22 @@ const GameLevel: React.FC<GameLevelProps> = ({ levelData, onGameOver, onWin, onE
 
                 {/* Body Group (Middle ~20px) */}
                 <div className="absolute top-[30px] left-[6px] w-[28px] h-[20px] border-2 border-black border-t-0 bg-white z-0">
-                     {/* Arms (Sticking out) */}
                      <div className="absolute top-2 -left-3 w-4 h-1.5 bg-black rounded-full origin-right rotate-[-10deg]"></div>
                      <div className="absolute top-2 -right-3 w-4 h-1.5 bg-black rounded-full origin-left rotate-[10deg]"></div>
                 </div>
 
-                {/* Legs (Bottom ~14px) - Thinner and Straighter */}
+                {/* Legs (Bottom ~14px) - Animated! */}
                 <div className="absolute top-[48px] left-[6px] w-[28px] flex justify-center gap-2">
-                    <div className={`w-2 h-4 bg-black ${renderPlayer.vx !== 0 ? 'animate-pulse' : ''}`}></div>
-                    <div className={`w-2 h-4 bg-black ${renderPlayer.vx !== 0 ? 'animate-pulse' : ''}`}></div>
+                    {/* Left Leg */}
+                    <div 
+                        className="w-2 h-4 bg-black origin-top"
+                        style={{ transform: `rotate(${legRot}deg)` }}
+                    ></div>
+                    {/* Right Leg */}
+                    <div 
+                        className="w-2 h-4 bg-black origin-top"
+                        style={{ transform: `rotate(${-legRot}deg)` }}
+                    ></div>
                 </div>
                 
                 {renderPlayer.isSwimming && (
