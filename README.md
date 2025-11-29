@@ -1,20 +1,42 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# Super Rabbit Boy Adventure
 
-# Run and deploy your AI Studio app
+A platformer game built with React, TypeScript, and Vite.
 
-This contains everything you need to run your app locally.
+## Features
+- **5 Unique Levels**: From Animal Town to the Boom Boom Factory.
+- **Physics Engine**: Custom AABB collision detection, variable jump height, momentum-based jumping, and swimming mechanics.
+- **Progressive Difficulty**: New enemies and hazards introduced in each level.
+- **Responsive Design**: Scales to fit different screen sizes.
 
-View your app in AI Studio: https://ai.studio/apps/drive/1UR3asxbBpRcHbqbcxK7MBFERuvq4f8Sb
+## How to Run Locally
 
-## Run Locally
+1. **Install dependencies:**
+   ```bash
+   npm install
+   ```
 
-**Prerequisites:**  Node.js
+2. **Start the development server:**
+   ```bash
+   npm run dev
+   ```
 
+3. **Build for production:**
+   ```bash
+   npm run build
+   ```
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+## Deployment
+
+This project is configured for GitHub Pages.
+
+1. **Push to GitHub:**
+   ```bash
+   git push origin main
+   ```
+
+2. **Deploy via Action:**
+   The included `.github/workflows/deploy.yml` will automatically build and deploy your game to the `gh-pages` branch whenever you push to `main`.
+
+## Controls
+- **Arrow Keys / Touch Pad**: Move and Jump
+- **Space / Action Button**: Interact (Enter doors, eat carrots)
