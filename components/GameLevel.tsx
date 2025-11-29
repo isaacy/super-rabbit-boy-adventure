@@ -32,9 +32,12 @@ const GameLevel: React.FC<GameLevelProps> = ({ levelData, onGameOver, onWin, onE
   const keysRef = useRef<{ [key: string]: boolean }>({});
   const enemiesRef = useRef<Entity[]>(JSON.parse(JSON.stringify(levelData.enemies)));
   const itemsRef = useRef<Entity[]>(JSON.parse(JSON.stringify(levelData.items)));
-  const requestRef = useRef<number>();
+  const requestRef = useRef<number>(0);
   const frameRef = useRef<number>(0);
   
+  // Responsive Scale State
+  const [scale, setScale] = useState(1);
+
   // React State for rendering
   const [renderPlayer, setRenderPlayer] = useState<PlayerState>(playerRef.current);
   const [renderEnemies, setRenderEnemies] = useState<Entity[]>(enemiesRef.current);
@@ -221,6 +224,18 @@ const GameLevel: React.FC<GameLevelProps> = ({ levelData, onGameOver, onWin, onE
   }, [levelData, onGameOver, onWin]);
 
   useEffect(() => {
+    // Handle Window Resize for Scaling
+    const handleResize = () => {
+       const scaleX = window.innerWidth / CANVAS_WIDTH;
+       const scaleY = window.innerHeight / CANVAS_HEIGHT;
+       // Fit to screen, but don't stretch aspect ratio weirdly. Use the smaller scale.
+       // Add a small margin (0.95) to be safe.
+       setScale(Math.min(scaleX, scaleY) * 0.95);
+    };
+    
+    window.addEventListener('resize', handleResize);
+    handleResize();
+
     const handleKeyDown = (e: KeyboardEvent) => { keysRef.current[e.key] = true; };
     const handleKeyUp = (e: KeyboardEvent) => { keysRef.current[e.key] = false; };
 
@@ -229,11 +244,20 @@ const GameLevel: React.FC<GameLevelProps> = ({ levelData, onGameOver, onWin, onE
     requestRef.current = requestAnimationFrame(update);
 
     return () => {
+      window.removeEventListener('resize', handleResize);
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
       if (requestRef.current) cancelAnimationFrame(requestRef.current);
     };
   }, [update]);
+
+  // Touch handlers
+  const handleTouchStart = (key: string) => {
+    keysRef.current[key] = true;
+  };
+  const handleTouchEnd = (key: string) => {
+    keysRef.current[key] = false;
+  };
 
   // Animation helpers
   const isMoving = Math.abs(renderPlayer.vx) > 0.1;
@@ -242,31 +266,33 @@ const GameLevel: React.FC<GameLevelProps> = ({ levelData, onGameOver, onWin, onE
       : 0;
 
   return (
-    <div className="relative bg-gray-900 flex items-center justify-center h-screen overflow-hidden">
+    <div className="relative bg-gray-900 flex items-center justify-center h-screen overflow-hidden select-none touch-none">
         
-        {/* HUD */}
-        <div className="absolute top-4 left-4 z-20 bg-white border-2 border-black p-2 rounded flex flex-col gap-1 shadow-lg">
-            <div className="font-bold text-sm uppercase tracking-wider text-purple-700">{levelData.name}</div>
-            <div className="flex items-center gap-2">
-                <div className="w-4 h-4 bg-orange-500 rounded-full"></div>
-                <span className="font-bold">{renderPlayer.carrotsCollected} / {levelData.items.length}</span>
-            </div>
-            <div className="text-[10px] text-gray-600 mt-1">
-               Jump Boost: +{(renderPlayer.carrotsCollected * CARROT_JUMP_BONUS).toFixed(1)}
-            </div>
-            <div className="text-xs text-gray-500">
-                SPACE to Eat/Exit
-            </div>
-            <button onClick={onExit} className="mt-2 text-xs bg-red-500 text-white px-2 py-1 rounded font-bold hover:bg-red-400">
-                QUIT
-            </button>
-        </div>
-
-        {/* Game Canvas Container */}
+        {/* Game Canvas Container Scaled */}
         <div 
+          style={{ 
+             width: CANVAS_WIDTH, 
+             height: CANVAS_HEIGHT,
+             transform: `scale(${scale})`,
+             transformOrigin: 'center center'
+          }}
           className={`relative border-4 border-gray-800 shadow-2xl overflow-hidden ${levelData.background}`}
-          style={{ width: CANVAS_WIDTH, height: CANVAS_HEIGHT }}
         >
+            {/* HUD */}
+            <div className="absolute top-4 left-4 z-20 bg-white border-2 border-black p-2 rounded flex flex-col gap-1 shadow-lg origin-top-left transform scale-125">
+                <div className="font-bold text-sm uppercase tracking-wider text-purple-700">{levelData.name}</div>
+                <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 bg-orange-500 rounded-full"></div>
+                    <span className="font-bold">{renderPlayer.carrotsCollected} / {levelData.items.length}</span>
+                </div>
+                <div className="text-[10px] text-gray-600 mt-1">
+                   Boost: +{(renderPlayer.carrotsCollected * CARROT_JUMP_BONUS).toFixed(1)}
+                </div>
+                <button onPointerDown={onExit} className="mt-2 text-xs bg-red-500 text-white px-2 py-1 rounded font-bold hover:bg-red-400">
+                    QUIT
+                </button>
+            </div>
+
             {/* Platforms */}
             {levelData.platforms.map(plat => (
                 <div 
@@ -294,7 +320,7 @@ const GameLevel: React.FC<GameLevelProps> = ({ levelData, onGameOver, onWin, onE
                 <div className="absolute right-2 top-1/2 w-2 h-2 bg-yellow-400 rounded-full shadow-sm"></div>
                 {checkCollision(renderPlayer, levelData.door) && (
                     <div className="absolute -top-10 bg-white border border-black px-2 py-1 text-xs animate-bounce z-30">
-                        Press SPACE!
+                        Tap ACT!
                     </div>
                 )}
             </div>
@@ -315,7 +341,7 @@ const GameLevel: React.FC<GameLevelProps> = ({ levelData, onGameOver, onWin, onE
                     </div>
                      {checkCollision(renderPlayer, item) && (
                         <div className="absolute -top-12 bg-white/80 px-1 text-[10px] whitespace-nowrap z-30">
-                            Space to Eat!
+                            Tap ACT!
                         </div>
                     )}
                 </div>
@@ -393,14 +419,54 @@ const GameLevel: React.FC<GameLevelProps> = ({ levelData, onGameOver, onWin, onE
                 )}
             </div>
             
-            {/* Visual Instructions Overlay (Fades out) */}
-            <div className="absolute bottom-4 right-4 pointer-events-none opacity-50">
-                 <div className="bg-black/10 p-2 rounded text-xs text-white/80">
-                    Arrows: Move/Jump <br/> Space: Action
-                 </div>
-            </div>
-
         </div>
+
+        {/* Touch Controls Overlay (Always visible on touch devices, or just always visible for simplicity in this request) */}
+        <div className="absolute inset-0 pointer-events-none z-50">
+             {/* Left Controls (Movement) */}
+             <div className="absolute bottom-6 left-6 flex gap-4 pointer-events-auto">
+                 <button 
+                    className="w-20 h-20 bg-white/30 border-2 border-white/50 rounded-full backdrop-blur-sm active:bg-white/60 flex items-center justify-center shadow-lg"
+                    onPointerDown={() => handleTouchStart('ArrowLeft')}
+                    onPointerUp={() => handleTouchEnd('ArrowLeft')}
+                    onPointerLeave={() => handleTouchEnd('ArrowLeft')}
+                 >
+                    <span className="text-4xl text-white font-bold">←</span>
+                 </button>
+                 <button 
+                    className="w-20 h-20 bg-white/30 border-2 border-white/50 rounded-full backdrop-blur-sm active:bg-white/60 flex items-center justify-center shadow-lg"
+                    onPointerDown={() => handleTouchStart('ArrowRight')}
+                    onPointerUp={() => handleTouchEnd('ArrowRight')}
+                    onPointerLeave={() => handleTouchEnd('ArrowRight')}
+                 >
+                    <span className="text-4xl text-white font-bold">→</span>
+                 </button>
+             </div>
+
+             {/* Right Controls (Action & Jump) */}
+             <div className="absolute bottom-6 right-6 flex gap-4 pointer-events-auto items-end">
+                 {/* Action Button (Space) */}
+                 <button 
+                    className="w-16 h-16 mb-2 bg-yellow-400/50 border-2 border-yellow-200 rounded-full backdrop-blur-sm active:bg-yellow-400/80 flex items-center justify-center shadow-lg"
+                    onPointerDown={() => handleTouchStart(' ')} // Space key
+                    onPointerUp={() => handleTouchEnd(' ')}
+                    onPointerLeave={() => handleTouchEnd(' ')}
+                 >
+                    <span className="text-sm text-black font-bold">ACT</span>
+                 </button>
+
+                 {/* Jump Button (Up) */}
+                 <button 
+                    className="w-24 h-24 bg-blue-500/40 border-2 border-blue-300 rounded-full backdrop-blur-sm active:bg-blue-500/70 flex items-center justify-center shadow-lg"
+                    onPointerDown={() => handleTouchStart('ArrowUp')}
+                    onPointerUp={() => handleTouchEnd('ArrowUp')}
+                    onPointerLeave={() => handleTouchEnd('ArrowUp')}
+                 >
+                    <span className="text-2xl text-white font-bold">JUMP</span>
+                 </button>
+             </div>
+        </div>
+
     </div>
   );
 };
