@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import GameLevel from './components/GameLevel';
 import CharacterSelect from './components/CharacterSelect';
 import HowToPlay from './components/HowToPlay';
@@ -8,10 +8,28 @@ import { LEVELS } from './constants';
 const App = () => {
   const [currentScreen, setCurrentScreen] = useState<Screen>(Screen.MENU);
   const [currentLevelIndex, setCurrentLevelIndex] = useState(0);
+  const [lives, setLives] = useState(3);
+  const [isPortrait, setIsPortrait] = useState(false);
   
+  // Check orientation logic
+  useEffect(() => {
+    const checkOrientation = () => {
+      // Simple check: if height > width, it's portrait.
+      // We mainly care about mobile/tablet devices.
+      const isPortraitMode = window.innerHeight > window.innerWidth;
+      setIsPortrait(isPortraitMode);
+    };
+
+    window.addEventListener('resize', checkOrientation);
+    checkOrientation(); // Initial check
+
+    return () => window.removeEventListener('resize', checkOrientation);
+  }, []);
+
   // Handlers
   const startGame = () => {
     setCurrentLevelIndex(0);
+    setLives(3); // Reset lives to 3 on new game
     setCurrentScreen(Screen.GAME);
   };
 
@@ -29,7 +47,16 @@ const App = () => {
     }
   };
 
-  const handleGameOver = () => setCurrentScreen(Screen.GAME_OVER);
+  // Logic for when player "dies" in the level
+  const handlePlayerDied = () => {
+     if (lives > 1) {
+         setLives(prev => prev - 1);
+         // Decrementing lives will change the key of GameLevel, causing it to remount (reset)
+     } else {
+         setLives(0);
+         setCurrentScreen(Screen.GAME_OVER);
+     }
+  };
 
   const renderScreen = () => {
     switch (currentScreen) {
@@ -92,9 +119,10 @@ const App = () => {
       case Screen.GAME:
         return (
           <GameLevel 
-            key={currentLevelIndex} // Force remount on level change
-            levelData={LEVELS[currentLevelIndex]} 
-            onGameOver={handleGameOver} 
+            key={`${currentLevelIndex}-${lives}`} // Force remount when level OR lives change
+            levelData={LEVELS[currentLevelIndex]}
+            lives={lives}
+            onGameOver={handlePlayerDied} 
             onWin={handleLevelComplete}
             onExit={goBackToMenu}
           />
@@ -150,7 +178,16 @@ const App = () => {
   };
 
   return (
-    <div className="font-sans text-gray-900">
+    <div className="font-sans text-gray-900 overflow-hidden">
+      {/* Landscape Enforcement Overlay */}
+      {isPortrait && (
+        <div className="fixed inset-0 z-[100] bg-black/90 flex flex-col items-center justify-center text-white p-8 text-center backdrop-blur-md">
+           <div className="text-6xl mb-4 animate-spin-slow">↻</div>
+           <h2 className="text-3xl font-bold mb-2">Please Rotate Device</h2>
+           <p className="text-gray-300">Super Rabbit Boy works best in landscape mode!</p>
+        </div>
+      )}
+      
       {renderScreen()}
     </div>
   );

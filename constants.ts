@@ -126,6 +126,11 @@ export const LEVEL_3: LevelData = {
     { id: 'c1', type: EntityType.ITEM_CARROT, x: 140, y: 310, w: 20, h: 40 },
     { id: 'c2', type: EntityType.ITEM_CARROT, x: 380, y: 210, w: 20, h: 40 },
     { id: 'c3', type: EntityType.ITEM_CARROT, x: 650, y: 510, w: 20, h: 40 },
+    // New Carrots
+    { id: 'c4', type: EntityType.ITEM_CARROT, x: 235, y: 390, w: 20, h: 40 }, // On p1
+    { id: 'c5', type: EntityType.ITEM_CARROT, x: 535, y: 390, w: 20, h: 40 }, // On p2
+    { id: 'c6', type: EntityType.ITEM_CARROT, x: 30, y: 510, w: 20, h: 40 },  // Start area
+    { id: 'c7', type: EntityType.ITEM_CARROT, x: 730, y: 110, w: 20, h: 40 }, // Near goal
   ],
   door: { id: 'exit', type: EntityType.DOOR, x: 730, y: 70, w: 40, h: 80 }
 };

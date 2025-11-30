@@ -25,17 +25,31 @@ A platformer game built with React, TypeScript, and Vite.
    npm run build
    ```
 
-## Deployment
+## Deployment to GitHub Pages
 
-This project is configured for GitHub Pages.
+Since this project is configured with `gh-pages`, you can deploy it directly from your terminal.
 
-1. **Push to GitHub:**
+1. **Initialize Git (if not done):**
    ```bash
-   git push origin main
+   git init
+   git add .
+   git commit -m "Initial commit"
    ```
 
-2. **Deploy via Action:**
-   The included `.github/workflows/deploy.yml` will automatically build and deploy your game to the `gh-pages` branch whenever you push to `main`.
+2. **Connect to your GitHub Repo:**
+   ```bash
+   git remote add origin https://github.com/YOUR_USERNAME/YOUR_REPO_NAME.git
+   git branch -M main
+   git push -u origin main
+   ```
+
+3. **Deploy:**
+   Run this command to build the game and push it to the `gh-pages` branch automatically:
+   ```bash
+   npm run deploy
+   ```
+
+Your game will be live at `https://YOUR_USERNAME.github.io/YOUR_REPO_NAME/`!
 
 ## Controls
 - **Arrow Keys / Touch Pad**: Move and Jump
